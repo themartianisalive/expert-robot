@@ -18,7 +18,13 @@
 
     <property name="main-class"  value="RobotWorld"/>
 
-
+      <copy todir="${build.dir}"> 
+          <fileset dir="${src.dir}" >
+              <include name="**/*.png" />
+              <include name="**/*.jpg" />
+              <include name="**/*.gif" />
+          </fileset> 
+      </copy>
 
     <target name="clean">
         <delete dir="${build.dir}"/>

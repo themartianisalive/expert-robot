@@ -1,10 +1,12 @@
 import processing.core.PApplet;
 import processing.core.PFont;
+import processing.core.PImage;
 
 import java.util.LinkedList;
 import java.util.Hashtable;
 import java.util.Random;
 import java.util.PriorityQueue;
+import java.io.File;
 
 /**
  * @author Verónica Arriola
@@ -14,17 +16,21 @@ public class RobotWorld extends PApplet {
 
     PFont fuente;               // Fuente para mostrar texto en pantalla
     int tamanioMosaico = 50;    // Tamanio de cada mosaico en pixeles
-    int columnas = 15;
+    int columnas = 21;
     int renglones = 15;
+    PImage face;
 
     Mapa mapa;
     boolean expande = false;    // Bandera para solicitar la expansión del siguiente nodo.
-    Algoritmo algoritmo;
     Robot robot;
     Random r;
     
     public void settings() {
         size(columnas * tamanioMosaico, renglones * tamanioMosaico);
+        //String path = RobotWorld.class.getClassLoader("").getPath();
+        // File file = new File(path);
+        //System.out.println(path);
+        //face = loadImage(path +  "robot.png");
     }
 
 
@@ -37,22 +43,19 @@ public class RobotWorld extends PApplet {
         fuente = createFont("Arial",12,true);
         textFont(fuente, 12);
         mapa = new Mapa(columnas, renglones);
-        generaObstaculos(8, 4);
 
-
-        algoritmo = new Algoritmo();
-
-        int startX = r.nextInt(columnas);
-        int startY = r.nextInt(renglones);
-        robot = new Robot(startX, startY);
+        generaObstaculos(13, 4);
+        robot = new Robot();
+        actulizaCreencia();
 
     }
 
     /** Dibuja la imagen en cada ciclo */
     @Override
-    public void draw(){
+    public void draw() {
+
         if (expande) {
-            algoritmo.expandeNodoSiguiente();
+            System.out.println("Aqui se debe mover");
             expande = false;
         }
 
@@ -81,8 +84,10 @@ public class RobotWorld extends PApplet {
                 switch(m.tipo) {
                     case OBSTACULO:
                         stroke(0); fill(200); break;
-                    case ESTADO_INICIAL:
-                        stroke(0,200,0); fill(0,200,0); break;
+                    case ROBOT:
+                        //image(face, robot.pos.x, robot.pos.y, tamanioMosaico, tamanioMosaico);
+                        fill(0,200,0); 
+                        break;
                     case ESTADO_FINAL:
                         stroke(200,0,0); fill(200,0,0); break;
                 }
@@ -99,7 +104,7 @@ public class RobotWorld extends PApplet {
 
     public void generaObstaculos(int nObstaculos, int maxSize) {
         Random r =  new Random();
-
+        int celdasOcupadas = 0;
         for (int i = 0; i < nObstaculos; ++i) {
 
             int startX = r.nextInt(columnas);
@@ -116,6 +121,17 @@ public class RobotWorld extends PApplet {
                 }  else {
                     mapa.mundo[startY][startX++].tipo = Tipo.OBSTACULO;
                 }
+                celdasOcupadas++;
+            }
+        }
+        mapa.totalObstaculos = celdasOcupadas;
+    }
+
+    public void actulizaCreencia() {
+        float creencia = 1.0f / ((mapa.totalCeldas - mapa.totalObstaculos) * 1.0f);
+        for (Mosaico[] row : mapa.mundo) {
+            for (Mosaico m : row) {
+                m.creencia = creencia;
             }
         }
     }
@@ -130,11 +146,13 @@ public class RobotWorld extends PApplet {
         int hn;                // Distancia estimada a la meta.
         Mosaico padre;         // Mosaico desde el cual se ha llegado.
         Mapa mapa;             // Referencia al mapa en el que se encuentra este mosaico.
+        float creencia;
 
         Mosaico(int renglon, int columna, Mapa mapa){
             this.renglon = renglon;
             this.columna = columna;
             this.mapa = mapa;
+            this.creencia = 0;
         }
 
         /** Devuelve el valor actual de fn. */
@@ -153,45 +171,45 @@ public class RobotWorld extends PApplet {
         * Devuelve una referencia al mosaico del mapa a donde se movería el agente
         * con la acción indicada.
         */
-        Mosaico aplicaAccion(Accion a){
+        Mosaico aplicaDireccion(Direccion a){
             Mosaico vecino;
             switch(a) {
-                case MOVE_UP:
+                case N:
                     if(renglon > 0) {
                     vecino = mapa.mundo[renglon - 1][columna];
                     } else return null;
                     break;
-                case MOVE_DOWN:
+                case S:
                     if(renglon < mapa.renglones - 1) {
                     vecino = mapa.mundo[renglon + 1][columna];
                     } else return null;
                     break;
-                case MOVE_LEFT:
+                case O:
                     if(columna > 0) {
                     vecino = mapa.mundo[renglon][columna - 1];
                     } else return null;
                     break;
-                case MOVE_RIGHT:
+                case E:
                     if(columna < mapa.columnas - 1) {
                     vecino = mapa.mundo[renglon][columna + 1];
                     } else return null;
                     break;
-                case MOVE_NW:
+                case NO:
                     if(renglon > 0 && columna > 0) {
                     vecino = mapa.mundo[renglon - 1][columna - 1];
                     } else return null;
                     break;
-                case MOVE_NE:
+                case NE:
                     if(renglon < mapa.renglones - 1 && columna > 0) {
                     vecino = mapa.mundo[renglon + 1][columna - 1];
                     } else return null;
                     break;
-                case MOVE_SW:
+                case SO:
                     if(renglon > 0 && columna < mapa.columnas - 1) {
                     vecino = mapa.mundo[renglon - 1][columna + 1];
                     } else return null;
                     break;
-                case MOVE_SE:
+                case SE:
                     if(renglon < mapa.renglones - 1 && columna < mapa.columnas - 1) {
                     vecino = mapa.mundo[renglon + 1][columna + 1];
                     } else return null;
@@ -207,11 +225,14 @@ public class RobotWorld extends PApplet {
     // --- Clase Mapa
     class Mapa {
         int columnas, renglones;
+        int totalCeldas;
+        int totalObstaculos; 
         Mosaico[][] mundo;
 
         Mapa(int columnas, int renglones) {
             this.columnas = columnas;
             this.renglones = renglones;
+            totalCeldas = columnas * renglones;
             mundo = new Mosaico[renglones][columnas];
             for(int i = 0; i < renglones; i++)
                 for(int j = 0; j < columnas; j++)
@@ -223,7 +244,7 @@ public class RobotWorld extends PApplet {
     // --- Clase nodo de búsqueda
     class NodoBusqueda implements Comparable<NodoBusqueda> {
         NodoBusqueda padre;  // Nodo que generó a este nodo.
-        Accion accionPadre;  // Acción que llevó al agente a este nodo.
+        Direccion accionPadre;  // Acción que llevó al agente a este nodo.
         Mosaico estado;      // Refencia al estado al que se llegó.
         int gn;              // Costo de llegar hasta este nodo.
 
@@ -241,11 +262,10 @@ public class RobotWorld extends PApplet {
             LinkedList<NodoBusqueda> sucesores = new LinkedList();
             Mosaico sucesor;
             NodoBusqueda nodoSucesor;
-            for(Accion a : Accion.values()) {
-                sucesor = estado.aplicaAccion(a);
+            for(Direccion a : Direccion.values()) {
+                sucesor = estado.aplicaDireccion(a);
                 if(sucesor != null) {
                     nodoSucesor = new NodoBusqueda(sucesor);
-                    nodoSucesor.gn = this.gn + a.costo();
                     nodoSucesor.padre = this;
                     nodoSucesor.accionPadre = a;
                     sucesores.add(nodoSucesor);
@@ -265,11 +285,31 @@ public class RobotWorld extends PApplet {
         }
     }
 
-    class Robot {
+    class Posicion {
         int x;
         int y;
+        int angulo;
+    }
+
+    class Robot {
+        Posicion pos;
         float sensorOdometrico;
         float laser;
+
+        Robot () {
+            Random r = new Random();
+            int startX = r.nextInt(columnas);
+            int startY = r.nextInt(renglones);
+            boolean posOk  = mapa.mundo[startY][startX].tipo != Tipo.OBSTACULO;
+            pos = new Posicion();
+
+            while (!posOk) {
+                startX = r.nextInt(columnas);
+                startY = r.nextInt(renglones);
+                posOk  = mapa.mundo[startY][startX].tipo != Tipo.OBSTACULO;
+            }
+            mover(startX, startY);
+        }
 
         Robot (int x, int y) {
             sensorOdometrico = laser = 0;
@@ -277,9 +317,14 @@ public class RobotWorld extends PApplet {
         }
 
         void mover(int x, int y) {
-            this.x = x;
-            this.y = y;
-            mapa.mundo[y][x].tipo = Tipo.ESTADO_INICIAL;
+            mover(x,y,0);
+        }
+
+        void mover(int x, int y, int angulo) {
+            pos.x = x;
+            pos.y = y;
+            pos.angulo = angulo;
+            mapa.mundo[y][x].tipo = Tipo.ROBOT;
             actualizaSensor(x, y);
         }
 
@@ -287,71 +332,6 @@ public class RobotWorld extends PApplet {
 
         }
     }
-
-    // --- A*
-    class Algoritmo {
-        private PriorityQueue<NodoBusqueda> listaAbierta;
-        private Hashtable<Mosaico, Mosaico> listaCerrada;
-        Mosaico estadoFinal;  // Referencia al mosaico meta.
-        boolean resuelto;
-
-        NodoBusqueda nodoActual;
-        NodoBusqueda nodoPrevio;
-
-        void inicializa(Mosaico estadoInicial, Mosaico estadoFinal) {
-            resuelto = false;
-            this.estadoFinal = estadoFinal;
-            // aqui deben incializar sus listas abierta y cerrada
-            listaAbierta = new PriorityQueue<NodoBusqueda>();
-            listaCerrada = new Hashtable<Mosaico, Mosaico>();
-            estadoInicial.calculaHeuristica(estadoFinal);
-            estadoInicial.tipo = Tipo.ESTADO_INICIAL;
-            estadoFinal.tipo = Tipo.ESTADO_FINAL;
-
-            nodoPrevio = new NodoBusqueda(estadoInicial);
-            listaAbierta.offer(nodoPrevio);
-        }
-
-        void expandeNodoSiguiente() {
-            if (resuelto || listaAbierta.isEmpty())
-                return;
-
-            NodoBusqueda nodoActual  = listaAbierta.poll();
-            listaCerrada.put(nodoActual.estado, nodoActual.estado);
-            nodoActual.estado.situacion = Situacion.EN_LISTA_CERRADA;
-
-            // /* generar a sus sucesores */
-            LinkedList<NodoBusqueda> vecinos = nodoActual.getSucesores();
-            for (NodoBusqueda n : vecinos ) {
-                if (n.estado.situacion != Situacion.EN_LISTA_CERRADA) {
-                    if (n.estado.situacion != Situacion.EN_LISTA_ABIERTA) {
-                        n.estado.calculaHeuristica(estadoFinal);
-                        n.padre = nodoActual;
-                        listaAbierta.add(n);
-                        n.estado.situacion = Situacion.EN_LISTA_ABIERTA;
-                    } else {
-                        if (n.gn < nodoActual.gn) {
-                            listaAbierta.remove(n);
-                            n.padre = nodoActual;
-                            n.estado.calculaHeuristica(estadoFinal);
-                            listaAbierta.add(n);
-                        }
-                    }
-                }
-            }
-
-            if (estadoFinal.situacion == Situacion.EN_LISTA_CERRADA) {
-                resuelto =  true;
-                NodoBusqueda tmp = nodoActual;
-                while (tmp != null) {
-                    tmp.estado.situacion = Situacion.EN_SOLUCION;
-                    tmp = tmp.padre;
-                }
-                return;
-            }
-        }
-    }
-
 
     static public void main(String args[]) {
         PApplet.main(new String[] { "RobotWorld" });

@@ -1,5 +1,5 @@
 enum Tipo {
-  ESTADO_INICIAL,
+  ROBOT,
   ESTADO_FINAL,
   OBSTACULO,
   VACIO
