@@ -84,6 +84,8 @@ public class RobotWorld extends PApplet {
                 switch(m.tipo) {
                     case OBSTACULO:
                         stroke(0); fill(200); break;
+                        text("d=" + m.distancia, j*tamanioMosaico+4, i*tamanioMosaico + 15);
+
                     case ROBOT:
                         //image(face, robot.pos.x, robot.pos.y, tamanioMosaico, tamanioMosaico);
                         fill(0,200,0); 
@@ -91,6 +93,7 @@ public class RobotWorld extends PApplet {
                     case ESTADO_FINAL:
                         stroke(200,0,0); fill(200,0,0); break;
                 }
+
                 rect(j*tamanioMosaico, i*tamanioMosaico, tamanioMosaico, tamanioMosaico);
             }
         }
@@ -147,24 +150,13 @@ public class RobotWorld extends PApplet {
         Mosaico padre;         // Mosaico desde el cual se ha llegado.
         Mapa mapa;             // Referencia al mapa en el que se encuentra este mosaico.
         float creencia;
+        float distancia;
 
         Mosaico(int renglon, int columna, Mapa mapa){
             this.renglon = renglon;
             this.columna = columna;
             this.mapa = mapa;
             this.creencia = 0;
-        }
-
-        /** Devuelve el valor actual de fn. */
-        int fn() {
-            return gn + hn;
-        }
-
-        /** Calcula la distancia Manhattan a la meta. */
-        void calculaHeuristica(Mosaico meta) {            
-            int deltaX = Math.abs(renglon - meta.renglon);
-            int deltaY = Math.abs(columna - meta.columna);
-            hn = (deltaX + deltaY) * 10;
         }
 
         /**
@@ -325,11 +317,38 @@ public class RobotWorld extends PApplet {
             pos.y = y;
             pos.angulo = angulo;
             mapa.mundo[y][x].tipo = Tipo.ROBOT;
-            actualizaSensor(x, y);
+            actualizaDistancias(x, y);
         }
 
-        void actualizaSensor(int x, int y) {
+        /* 
+        debemos calculas las distancias en linea recta
+        sobre las 8 direcciones a encotrar los obstaculos y almacenamos
+        la informacion sobre las celdas
+        */
+        void actualizaDistancias(int x, int y) {
+            Mosaico robot = mapa.mundo[y][x];            
+            for(Direccion dir: Direccion.values()) {
+                // buscamos el proximo obstaculo
+                buscaObstaculo(robot, dir, 0);
+            }
 
+        }
+
+        /*
+         Agregamos el costo de haber llegado hasta aquí dentro de 
+         las celdas de los mosaicos
+        */
+        void buscaObstaculo(Mosaico m , Direccion dir, float distancia) {
+            if (m ==  null)
+                return;
+
+            float nd = distancia + tamanioMosaico * dir.distancia();
+
+            if (m.tipo == Tipo.OBSTACULO) {
+                m.distancia = nd;
+            } else {
+                buscaObstaculo(m.aplicaDireccion(dir), dir, nd);
+            }
         }
     }
 
