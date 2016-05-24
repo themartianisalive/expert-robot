@@ -83,8 +83,8 @@ public class RobotWorld extends PApplet {
                 }
                 switch(m.tipo) {
                     case OBSTACULO:
-                        stroke(0); fill(200); break;
-                        text("d=" + m.distancia, j*tamanioMosaico+4, i*tamanioMosaico + 15);
+                        stroke(0); fill(200); 
+                        break;
 
                     case ROBOT:
                         //image(face, robot.pos.x, robot.pos.y, tamanioMosaico, tamanioMosaico);
@@ -92,6 +92,13 @@ public class RobotWorld extends PApplet {
                         break;
                     case ESTADO_FINAL:
                         stroke(200,0,0); fill(200,0,0); break;
+                }
+                switch (s) {
+                    case CALCULADO:
+                        fill(255, 255, 255);
+                        System.out.println("d=" + m.distancia);
+                        text("d=" + m.distancia, j*tamanioMosaico+4, i*tamanioMosaico + 15);
+                        continue;
                 }
 
                 rect(j*tamanioMosaico, i*tamanioMosaico, tamanioMosaico, tamanioMosaico);
@@ -343,9 +350,11 @@ public class RobotWorld extends PApplet {
                 return;
 
             float nd = distancia + tamanioMosaico * dir.distancia();
+            System.out.println("nd: "+nd);
 
             if (m.tipo == Tipo.OBSTACULO) {
                 m.distancia = nd;
+                m.situacion = Situacion.CALCULADO;
             } else {
                 buscaObstaculo(m.aplicaDireccion(dir), dir, nd);
             }
