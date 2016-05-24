@@ -3,25 +3,28 @@ import processing.core.PFont;
 
 import java.util.LinkedList;
 import java.util.Hashtable;
+import java.util.Random;
 import java.util.PriorityQueue;
 
 /**
- *
  * @author Verónica Arriola
+ * @author Jonathan Andrade
  */
 public class RobotWorld extends PApplet {
 
     PFont fuente;               // Fuente para mostrar texto en pantalla
-    int tamanioMosaico = 60;    // Tamanio de cada mosaico en pixeles
-    int columnas = 21;
-    int renglones = 10;
+    int tamanioMosaico = 50;    // Tamanio de cada mosaico en pixeles
+    int columnas = 15;
+    int renglones = 15;
 
     Mapa mapa;
     boolean expande = false;    // Bandera para solicitar la expansión del siguiente nodo.
     Algoritmo algoritmo;
+    Robot robot;
+    Random r;
     
     public void settings() {
-        size(columnas * tamanioMosaico, renglones * tamanioMosaico + 70);
+        size(columnas * tamanioMosaico, renglones * tamanioMosaico);
     }
 
 
@@ -30,30 +33,19 @@ public class RobotWorld extends PApplet {
     public void setup(){
         //size(columnas * tamanioMosaico, renglones * tamanioMosaico + 70);
         background(50);
+        r =  new Random();
         fuente = createFont("Arial",12,true);
         textFont(fuente, 12);
         mapa = new Mapa(columnas, renglones);
-        mapa.mundo[2][5].tipo = Tipo.OBSTACULO;
-        mapa.mundo[2][6].tipo = Tipo.OBSTACULO;
-        mapa.mundo[3][6].tipo = Tipo.OBSTACULO;
-        mapa.mundo[4][6].tipo = Tipo.OBSTACULO;
-        mapa.mundo[5][6].tipo = Tipo.OBSTACULO;
-        mapa.mundo[6][6].tipo = Tipo.OBSTACULO;
-        mapa.mundo[6][5].tipo = Tipo.OBSTACULO;
-        mapa.mundo[4][10].tipo = Tipo.OBSTACULO;
-
-        mapa.mundo[2][12].tipo = Tipo.OBSTACULO;
-        mapa.mundo[3][12].tipo = Tipo.OBSTACULO;
-        mapa.mundo[4][12].tipo = Tipo.OBSTACULO;
-        mapa.mundo[5][12].tipo = Tipo.OBSTACULO;
-        mapa.mundo[6][12].tipo = Tipo.OBSTACULO;
+        generaObstaculos(8, 4);
 
 
         algoritmo = new Algoritmo();
-        Mosaico estadoInicial = mapa.mundo[5][3];
-        Mosaico estadoFinal = mapa.mundo[6][15];
 
-        algoritmo.inicializa(estadoInicial, estadoFinal);
+        int startX = r.nextInt(columnas);
+        int startY = r.nextInt(renglones);
+        robot = new Robot(startX, startY);
+
     }
 
     /** Dibuja la imagen en cada ciclo */
@@ -95,67 +87,8 @@ public class RobotWorld extends PApplet {
                         stroke(200,0,0); fill(200,0,0); break;
                 }
                 rect(j*tamanioMosaico, i*tamanioMosaico, tamanioMosaico, tamanioMosaico);
-                // Escribir datos
-                fill(0);
-                switch(m.tipo){
-                    case ESTADO_INICIAL:
-                        text("h(n)=" + m.hn, j*tamanioMosaico+4, (i+1)*tamanioMosaico - 4);
-                    continue;
-                }
-                try {
-
-                    switch(s) {
-                        case EN_SOLUCION:
-                            fill(255);
-                        case ACTUAL:
-                        case EN_LISTA_ABIERTA:
-                        case EN_LISTA_CERRADA:
-                            text("f(n)=" + m.fn(), j*tamanioMosaico+4, i*tamanioMosaico + 15);
-                            text("g(n)=" + m.gn, j*tamanioMosaico+4, (i+1)*tamanioMosaico - 20);
-                            text("h(n)=" + m.hn, j*tamanioMosaico+4, (i+1)*tamanioMosaico - 4);
-                            ellipse((float)((0.5 + j) * tamanioMosaico), (float)((0.5 + i) * tamanioMosaico), (float)10, (float)10);
-                            //line((float)((0.5 + j) * tamanioMosaico), (float)((0.5 + i) * tamanioMosaico),
-                              // (float)((0.5 + j) * tamanioMosaico + (m.padre.columna - m.columna) * 20),
-                               //(float)((0.5 + i) * tamanioMosaico + (m.padre.renglon - m.renglon) * 20));
-                            break;
-                    }
-                } catch (Exception e) {
-                }
             }
         }
-
-        fill(0);
-        rect(0, renglones * tamanioMosaico, columnas *  tamanioMosaico, 70);
-
-        fill(0,200,0);
-        rect(10, renglones * tamanioMosaico + 10, 20, 20);
-        fill(255);
-        text("Estado inicial", 40, renglones * tamanioMosaico + 30);
-
-        fill(200,0,0);
-        rect(10, renglones * tamanioMosaico + 30, 20, 20);
-        fill(255);
-        text("Estado final", 40, renglones * tamanioMosaico + 50);
-
-        fill(0,200,200);
-        rect(2 * tamanioMosaico, renglones * tamanioMosaico + 10, 20, 20);
-        fill(255);
-        text("Lista abierta", 2 * tamanioMosaico + 30, renglones * tamanioMosaico + 30);
-
-        fill(200,200,0);
-        rect(2 * tamanioMosaico, renglones * tamanioMosaico + 30, 20, 20);
-        fill(255);
-        text("Lista cerrada", 2 * tamanioMosaico + 30, renglones * tamanioMosaico + 50);
-
-        fill(150,0,150);
-        rect(4 * tamanioMosaico, renglones * tamanioMosaico + 10, 20, 20);
-        fill(255);
-        text("Nodo actual", 4 * tamanioMosaico + 30, renglones * tamanioMosaico + 30);
-
-        fill(0,0,100);
-        rect(4 * tamanioMosaico, renglones * tamanioMosaico + 30, 20, 20);
-        fill(255);
-        text("Solución", 4 * tamanioMosaico + 30, renglones * tamanioMosaico + 50);
     }
 
     
@@ -164,6 +97,28 @@ public class RobotWorld extends PApplet {
         expande = true;
     }
 
+    public void generaObstaculos(int nObstaculos, int maxSize) {
+        Random r =  new Random();
+
+        for (int i = 0; i < nObstaculos; ++i) {
+
+            int startX = r.nextInt(columnas);
+            int startY = r.nextInt(renglones);
+            int size = r.nextInt(maxSize) + 1;
+
+            startX = (startX + size) > columnas - 1 ? columnas - size - 1 : startX;
+            startY = (startY + size) > renglones - 1 ? renglones - size - 1: startY;
+            
+            for (int j = 0; j < size; ++j) {
+                boolean way = r.nextBoolean(); 
+                if (way) {
+                    mapa.mundo[startY++][startX].tipo = Tipo.OBSTACULO;
+                }  else {
+                    mapa.mundo[startY][startX++].tipo = Tipo.OBSTACULO;
+                }
+            }
+        }
+    }
 
     // --- Clase Mosaico
     // Representa cada casilla del mundo, corresponde a un estado posible del agente.
@@ -307,6 +262,29 @@ public class RobotWorld extends PApplet {
         public boolean equals(Object o) {
             NodoBusqueda otro = (NodoBusqueda)o;
             return estado.equals(otro.estado);
+        }
+    }
+
+    class Robot {
+        int x;
+        int y;
+        float sensorOdometrico;
+        float laser;
+
+        Robot (int x, int y) {
+            sensorOdometrico = laser = 0;
+            mover(x, y);
+        }
+
+        void mover(int x, int y) {
+            this.x = x;
+            this.y = y;
+            mapa.mundo[y][x].tipo = Tipo.ESTADO_INICIAL;
+            actualizaSensor(x, y);
+        }
+
+        void actualizaSensor(int x, int y) {
+
         }
     }
 
