@@ -23,6 +23,7 @@ public class RobotWorld extends PApplet {
     Mapa mapa;
     boolean expande = false;    // Bandera para solicitar la expansión del siguiente nodo.
     Robot robot;
+    Algoritmo algoritmo;
     Random r;
     
     public void settings() {
@@ -41,14 +42,15 @@ public class RobotWorld extends PApplet {
             //size(columnas * tamanioMosaico, renglones * tamanioMosaico + 70);
         background(50);
         r =  new Random();
-        fuente = createFont("Arial",12,true);
-        textFont(fuente, 12);
+        fuente = createFont("Arial",11,true);
+        textFont(fuente, 11);
         mapa = new Mapa(columnas, renglones);
 
         generaObstaculos(15, 8);
         robot = new Robot();
-        actulizaCreencia();
-
+        algoritmo =  new Algoritmo();
+        algoritmo.inicializa();
+        algoritmo.calculaDistancias();
     }
 
     /** Dibuja la imagen en cada ciclo */
@@ -85,7 +87,7 @@ public class RobotWorld extends PApplet {
 
                 switch(m.tipo) {
                     case OBSTACULO:
-                        stroke(200,200,200); fill(200,200,200); break;
+                        stroke(100,100,100); fill(100,100,100); break;
                     case ROBOT:
                         //image(face, robot.pos.x, robot.pos.y, tamanioMosaico, tamanioMosaico);
                         fill(0,200,0); 
@@ -95,12 +97,15 @@ public class RobotWorld extends PApplet {
                 }
                 rect(j*tamanioMosaico, i*tamanioMosaico, tamanioMosaico, tamanioMosaico);
 
-                fill(0);
                 switch (s) {
                     case CALCULADO:
-                        text("d=" + m.distancia, j*tamanioMosaico+4, i*tamanioMosaico + 15);
-                        ellipse((float)((0.5 + j) * tamanioMosaico), (float)((0.5 + i) * tamanioMosaico), (float)10, (float)10);
-                        continue;
+                        fill(0);
+                        text("B=" + m.creencia, j*tamanioMosaico+4, i*tamanioMosaico+15);
+                        break;
+                    default :
+                        fill(200);
+                        text("B=" + m.creencia, j*tamanioMosaico+4, i*tamanioMosaico+15);
+                        break;    
                 }
             }
         }
@@ -137,13 +142,83 @@ public class RobotWorld extends PApplet {
         mapa.totalObstaculos = celdasOcupadas;
     }
 
-    public void actulizaCreencia() {
-        float creencia = 1.0f / ((mapa.totalCeldas - mapa.totalObstaculos) * 1.0f);
-        for (Mosaico[] row : mapa.mundo) {
-            for (Mosaico m : row) {
-                m.creencia = creencia;
+    class Algoritmo {
+
+        double sigma;
+        double ruidoOdometro;
+        double ruidoGiro;
+
+        Algoritmo() {
+            ruidoOdometro = ruidoGiro = sigma = Math.random();
+        }
+
+        /* Inicializamos la creencia de todas las celdas*/
+       public void inicializa() {
+           double creencia = 1.0f / ((mapa.totalCeldas - mapa.totalObstaculos) * 1.0f);
+           for (Mosaico[] row : mapa.mundo) {
+               for (Mosaico m : row) {
+                   m.creencia = creencia;
+                   m.creencia = Math.round(m.creencia * 1000.0) / 1000.0;
+
+               }
+           }
+       }
+
+       /* Actualizamos las disntcias a todas partes del mundo */
+        public void calculaDistancias() {
+            for (Mosaico[] row : mapa.mundo) {
+                for (Mosaico m : row) {
+                   for (Direccion d : Direccion.values()) {
+                        double dis = distanciaObstaculo(m, d);
+                        m.distancias.put(d, dis);
+                   }
+                }
             }
         }
+
+        public void actulizaMovimientoRobot() {
+            double sOdom = 0;
+            for (Mosaico[] row : mapa.mundo) {
+                for (Mosaico m : row) {
+                   for (Direccion d : Direccion.values()) {
+                        double exponent = 0;
+                        double lLaser = 1.0f / (Math.sqrt(2 * Math.PI) * sigma)  * Math.pow(Math.E, exponent);
+                        m.creencia = m.creencia * lLaser;
+                        sOdom += m.creencia;
+                        m.creencia = Math.round(m.creencia * 100.0) / 100.0;
+                   }
+                }
+            }
+
+        }
+    }
+
+    /*
+     Agregamos el costo de haber llegado hasta aquí dentro de 
+     las celdas de los mosaicos
+    */
+    void buscaObstaculo(Mosaico m , Direccion dir, double distancia) {
+        if (m ==  null)
+            return;
+
+        double nd = distancia + tamanioMosaico * dir.distancia();
+
+        if (m.tipo == Tipo.OBSTACULO) {
+            m.distancia = nd;
+            m.situacion = Situacion.CALCULADO;
+            System.out.println("nd: "+nd + m.columna + " ," + m.renglon + " " + m.tipo);
+        } else {                
+            buscaObstaculo(m.aplicaDireccion(dir), dir, nd);
+        }
+    }
+
+    double distanciaObstaculo(Mosaico origen, Direccion dir) {
+        if (origen == null)
+            return 0;
+        if (origen.tipo ==  Tipo.OBSTACULO)
+            return dir.distancia();
+        else
+            return dir.distancia() + distanciaObstaculo(origen.aplicaDireccion(dir), dir);
     }
 
     // --- Clase Mosaico
@@ -152,12 +227,10 @@ public class RobotWorld extends PApplet {
         Situacion situacion = Situacion.SIN_VISITAR;
         Tipo tipo = Tipo.VACIO;
         int renglon, columna;  // Coordenadas de este mosaico
-        int gn;                // Distancia que ha tomado llegar hasta aquí.
-        int hn;                // Distancia estimada a la meta.
-        Mosaico padre;         // Mosaico desde el cual se ha llegado.
         Mapa mapa;             // Referencia al mapa en el que se encuentra este mosaico.
-        float creencia;
-        float distancia;
+        double creencia;
+        double distancia;
+        Hashtable<Direccion, Double> distancias = new Hashtable<>();
 
         Mosaico(int renglon, int columna, Mapa mapa){
             this.renglon = renglon;
@@ -236,52 +309,8 @@ public class RobotWorld extends PApplet {
                 for(int j = 0; j < columnas; j++)
                   mundo[i][j] = new Mosaico(i, j, this);
         }
-
     }
 
-    // --- Clase nodo de búsqueda
-    class NodoBusqueda implements Comparable<NodoBusqueda> {
-        NodoBusqueda padre;  // Nodo que generó a este nodo.
-        Direccion accionPadre;  // Acción que llevó al agente a este nodo.
-        Mosaico estado;      // Refencia al estado al que se llegó.
-        int gn;              // Costo de llegar hasta este nodo.
-
-        NodoBusqueda(Mosaico estado) {
-            this.estado = estado; 
-        }
-
-        /** Asume que hn ya fue calculada. */
-        int getFn() {
-            return gn + estado.hn;
-        }
-
-        /** Calcula los nodos de búsqueda sucesores. */
-        LinkedList<NodoBusqueda> getSucesores() {
-            LinkedList<NodoBusqueda> sucesores = new LinkedList();
-            Mosaico sucesor;
-            NodoBusqueda nodoSucesor;
-            for(Direccion a : Direccion.values()) {
-                sucesor = estado.aplicaDireccion(a);
-                if(sucesor != null) {
-                    nodoSucesor = new NodoBusqueda(sucesor);
-                    nodoSucesor.padre = this;
-                    nodoSucesor.accionPadre = a;
-                    sucesores.add(nodoSucesor);
-                }
-            }
-            return sucesores;
-        }
-
-        public int compareTo(NodoBusqueda nb){
-            return getFn() - nb.getFn();
-        }
-
-        /** En la lista abierta se considera que dos nodos son iguales si se refieren al mismo estado. */
-        public boolean equals(Object o) {
-            NodoBusqueda otro = (NodoBusqueda)o;
-            return estado.equals(otro.estado);
-        }
-    }
 
     class Posicion {
         int x;
@@ -291,8 +320,8 @@ public class RobotWorld extends PApplet {
 
     class Robot {
         Posicion pos;
-        float sensorOdometrico;
-        float laser;
+        double sensorOdometrico;
+        double laser;
 
         Robot () {
             Random r = new Random();
@@ -336,24 +365,6 @@ public class RobotWorld extends PApplet {
             for(Direccion dir: Direccion.values()) {
                 // buscamos el proximo obstaculo
                 buscaObstaculo(robot, dir, 0);
-            }
-        }
-
-        /*
-         Agregamos el costo de haber llegado hasta aquí dentro de 
-         las celdas de los mosaicos
-        */
-        void buscaObstaculo(Mosaico m , Direccion dir, float distancia) {
-            if (m ==  null)
-                return;
-
-            float nd = distancia + tamanioMosaico * dir.distancia();
-
-            if (m.tipo == Tipo.OBSTACULO) {
-                m.distancia = nd;
-                m.situacion = Situacion.CALCULADO;
-                System.out.println("nd: "+nd + m.columna + " ," + m.renglon + " " + m.tipo);
-            } else {                buscaObstaculo(m.aplicaDireccion(dir), dir, nd);
             }
         }
     }
