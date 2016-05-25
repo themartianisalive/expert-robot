@@ -216,34 +216,49 @@ public class RobotWorld extends PApplet {
         * Actualizamos la creencia en el caso de que el robot
         * no se haya movido
         */
-        /*
-        for all θ posibles do
-            for all posicion l en mundo do
-            Bel(LT =l)←P(sT |l)∗Bel(LT −1=l)
-             dondeP(sT |l)= √1
-            ( 2πσ)
-            αT ←αT +Bel(LT =l) end for
-            end for
-            for all θ posibles do
-            ∗e(
-            )
-            ◃ Ahora se normaliza la creencia
-            for all posicion l en mundo do Bel(LT =l)←αT−1 ∗Bel(LT =l)
-            end for end for
+        public void actualizaCreenciaGiro(Direccion d) {
+            double sOdom = 0;
+
+            for (Mosaico[] row : mapa.mundo) {
+                for (Mosaico m : row) {
+                   for (Direccion ddd : Direccion.values()) {
+                        double distanciaReal = m.distancias.get(d);
+                        double laser = distanciaReal * 0.95;
+                        double exponent = -((laser-distanciaReal) * (laser-distanciaReal)) / (2 * sigma * sigma);
+                        double lLaser = (1.0f / (Math.sqrt(2 * Math.PI) * sigma))  * Math.pow(Math.E, exponent);
+
+                        m.creencia = m.creencia * lLaser;
+                        sOdom += m.creencia;
+                   }
+                }
+            }
+            for (Mosaico[] row : mapa.mundo) {
+                for (Mosaico m : row) {
+                   for (Direccion dd : Direccion.values()) {
+                        m.creencia = (1 / sOdom) * m.creencia;
+                   }
+                }
+            }
+
+        }
+
+        /* 
+        * Actualizamos la creencia en el caso de que el robot
+        * no se haya movido
         */
-        public void actualizaCreenciaMovimiento(Robot robot) {
+        public void actualizaCreenciaMovimiento(float delta) {
             double sOdom = 0;
 
             for (Mosaico[] row : mapa.mundo) {
                 for (Mosaico m : row) {
                    for (Direccion d : Direccion.values()) {
-                        double laser = Math.random() + d.distancia();
                         double distanciaReal = m.distancias.get(d);
+                        double laser = distanciaReal * 0.95;
                         double exponent = -((laser-distanciaReal) * (laser-distanciaReal)) / (2 * sigma * sigma);
-                        double lLaser = 1.0f / (Math.sqrt(2 * Math.PI) * sigma)  * Math.pow(Math.E, exponent);
+                        double lLaser = (1.0f / (Math.sqrt(2 * Math.PI) * sigma))  * Math.pow(Math.E, exponent);
+
                         m.creencia = m.creencia * lLaser;
                         sOdom += m.creencia;
-                        m.creencia = Math.round(m.creencia * 100.0) / 100.0;
                    }
                 }
             }
@@ -255,6 +270,7 @@ public class RobotWorld extends PApplet {
                 }
             }
         }
+
     }
 
     /*
