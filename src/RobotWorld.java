@@ -37,14 +37,15 @@ public class RobotWorld extends PApplet {
     /** Configuracion inicial */
     @Override
     public void setup(){
-        //size(columnas * tamanioMosaico, renglones * tamanioMosaico + 70);
+        frameRate(5);
+            //size(columnas * tamanioMosaico, renglones * tamanioMosaico + 70);
         background(50);
         r =  new Random();
         fuente = createFont("Arial",12,true);
         textFont(fuente, 12);
         mapa = new Mapa(columnas, renglones);
 
-        generaObstaculos(13, 4);
+        generaObstaculos(15, 8);
         robot = new Robot();
         actulizaCreencia();
 
@@ -81,11 +82,10 @@ public class RobotWorld extends PApplet {
                     default:
                         stroke(0); fill(0);
                 }
+
                 switch(m.tipo) {
                     case OBSTACULO:
-                        stroke(0); fill(200); 
-                        break;
-
+                        stroke(200,200,200); fill(200,200,200); break;
                     case ROBOT:
                         //image(face, robot.pos.x, robot.pos.y, tamanioMosaico, tamanioMosaico);
                         fill(0,200,0); 
@@ -93,15 +93,15 @@ public class RobotWorld extends PApplet {
                     case ESTADO_FINAL:
                         stroke(200,0,0); fill(200,0,0); break;
                 }
+                rect(j*tamanioMosaico, i*tamanioMosaico, tamanioMosaico, tamanioMosaico);
+
+                fill(0);
                 switch (s) {
                     case CALCULADO:
-                        fill(255, 255, 255);
-                        System.out.println("d=" + m.distancia);
                         text("d=" + m.distancia, j*tamanioMosaico+4, i*tamanioMosaico + 15);
+                        ellipse((float)((0.5 + j) * tamanioMosaico), (float)((0.5 + i) * tamanioMosaico), (float)10, (float)10);
                         continue;
                 }
-
-                rect(j*tamanioMosaico, i*tamanioMosaico, tamanioMosaico, tamanioMosaico);
             }
         }
     }
@@ -127,7 +127,7 @@ public class RobotWorld extends PApplet {
             for (int j = 0; j < size; ++j) {
                 boolean way = r.nextBoolean(); 
                 if (way) {
-                    mapa.mundo[startY++][startX].tipo = Tipo.OBSTACULO;
+                    mapa.mundo[++startY][startX].tipo = Tipo.OBSTACULO;
                 }  else {
                     mapa.mundo[startY][startX++].tipo = Tipo.OBSTACULO;
                 }
@@ -216,8 +216,7 @@ public class RobotWorld extends PApplet {
                 default:
                     throw new IllegalArgumentException("Acción inválida" + a);
             }
-            if (vecino.tipo == Tipo.OBSTACULO) return null;
-            else return vecino;
+            return vecino;
         }
     }
 
@@ -338,7 +337,6 @@ public class RobotWorld extends PApplet {
                 // buscamos el proximo obstaculo
                 buscaObstaculo(robot, dir, 0);
             }
-
         }
 
         /*
@@ -350,13 +348,12 @@ public class RobotWorld extends PApplet {
                 return;
 
             float nd = distancia + tamanioMosaico * dir.distancia();
-            System.out.println("nd: "+nd);
 
             if (m.tipo == Tipo.OBSTACULO) {
                 m.distancia = nd;
                 m.situacion = Situacion.CALCULADO;
-            } else {
-                buscaObstaculo(m.aplicaDireccion(dir), dir, nd);
+                System.out.println("nd: "+nd + m.columna + " ," + m.renglon + " " + m.tipo);
+            } else {                buscaObstaculo(m.aplicaDireccion(dir), dir, nd);
             }
         }
     }
