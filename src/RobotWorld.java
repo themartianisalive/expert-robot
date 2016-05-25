@@ -20,10 +20,10 @@ public class RobotWorld extends PApplet {
     int renglones = 15;
     PImage face;
 
-    Mapa mapa;
+    Mapa mapa;                  // El mapa de la habitación
     boolean expande = false;    // Bandera para solicitar la expansión del siguiente nodo.
-    Robot robot;
-    Algoritmo algoritmo;
+    Robot robot;                // Nuestro agente
+    Algoritmo algoritmo;        // Instancia del algoritmo de Localizacion
     Random r;
     
     public void settings() {
@@ -39,7 +39,7 @@ public class RobotWorld extends PApplet {
     @Override
     public void setup(){
         frameRate(5);
-            //size(columnas * tamanioMosaico, renglones * tamanioMosaico + 70);
+
         background(50);
         r =  new Random();
         fuente = createFont("Arial",11,true);
@@ -59,6 +59,7 @@ public class RobotWorld extends PApplet {
 
         if (expande) {
             System.out.println("Aqui se debe mover");
+            algoritmo.actualizaCreenciaEstatico();
             expande = false;
         }
 
@@ -117,6 +118,10 @@ public class RobotWorld extends PApplet {
         expande = true;
     }
 
+    /* 
+    * Generamos obstaculos aleatorios dado un numero de obstaculos a
+    * generar y un tamaño maximo para cada obstaculo
+    */
     public void generaObstaculos(int nObstaculos, int maxSize) {
         Random r =  new Random();
         int celdasOcupadas = 0;
@@ -142,6 +147,9 @@ public class RobotWorld extends PApplet {
         mapa.totalObstaculos = celdasOcupadas;
     }
 
+    /*
+    * Clase que implementa el algoritmo de localizacion
+    */
     class Algoritmo {
 
         double sigma;
@@ -159,7 +167,6 @@ public class RobotWorld extends PApplet {
                for (Mosaico m : row) {
                    m.creencia = creencia;
                    m.creencia = Math.round(m.creencia * 1000.0) / 1000.0;
-
                }
            }
        }
@@ -176,12 +183,63 @@ public class RobotWorld extends PApplet {
             }
         }
 
-        public void actulizaMovimientoRobot() {
+        /* 
+        * Actualizamos la creencia en el caso de que el robot
+        * no se haya movido
+        */
+        public void actualizaCreenciaEstatico() {
             double sOdom = 0;
+
             for (Mosaico[] row : mapa.mundo) {
                 for (Mosaico m : row) {
                    for (Direccion d : Direccion.values()) {
-                        double exponent = 0;
+                        double distanciaReal = m.distancias.get(d);
+                        double laser = distanciaReal * 0.95;
+                        double exponent = -((laser-distanciaReal) * (laser-distanciaReal)) / (2 * sigma * sigma);
+                        double lLaser = (1.0f / (Math.sqrt(2 * Math.PI) * sigma))  * Math.pow(Math.E, exponent);
+
+                        m.creencia = m.creencia * lLaser;
+                        sOdom += m.creencia;
+                   }
+                }
+            }
+            for (Mosaico[] row : mapa.mundo) {
+                for (Mosaico m : row) {
+                   for (Direccion d : Direccion.values()) {
+                        m.creencia = (1 / sOdom) * m.creencia;
+                   }
+                }
+            }
+        }
+
+        /* 
+        * Actualizamos la creencia en el caso de que el robot
+        * no se haya movido
+        */
+        /*
+        for all θ posibles do
+            for all posicion l en mundo do
+            Bel(LT =l)←P(sT |l)∗Bel(LT −1=l)
+             dondeP(sT |l)= √1
+            ( 2πσ)
+            αT ←αT +Bel(LT =l) end for
+            end for
+            for all θ posibles do
+            ∗e(
+            )
+            ◃ Ahora se normaliza la creencia
+            for all posicion l en mundo do Bel(LT =l)←αT−1 ∗Bel(LT =l)
+            end for end for
+        */
+        public void actualizaCreenciaMovimiento(Robot robot) {
+            double sOdom = 0;
+
+            for (Mosaico[] row : mapa.mundo) {
+                for (Mosaico m : row) {
+                   for (Direccion d : Direccion.values()) {
+                        double laser = Math.random() + d.distancia();
+                        double distanciaReal = m.distancias.get(d);
+                        double exponent = -((laser-distanciaReal) * (laser-distanciaReal)) / (2 * sigma * sigma);
                         double lLaser = 1.0f / (Math.sqrt(2 * Math.PI) * sigma)  * Math.pow(Math.E, exponent);
                         m.creencia = m.creencia * lLaser;
                         sOdom += m.creencia;
@@ -189,7 +247,13 @@ public class RobotWorld extends PApplet {
                    }
                 }
             }
-
+            for (Mosaico[] row : mapa.mundo) {
+                for (Mosaico m : row) {
+                   for (Direccion d : Direccion.values()) {
+                        m.creencia = (1 / sOdom) * m.creencia;
+                   }
+                }
+            }
         }
     }
 
@@ -210,8 +274,12 @@ public class RobotWorld extends PApplet {
         } else {                
             buscaObstaculo(m.aplicaDireccion(dir), dir, nd);
         }
-    }
+    } 
 
+    /*
+    + Calcula la distancia desde un mosaico libre hasta uno que 
+    * sea un obstaculo
+    */
     double distanciaObstaculo(Mosaico origen, Direccion dir) {
         if (origen == null)
             return 0;
@@ -311,19 +379,23 @@ public class RobotWorld extends PApplet {
         }
     }
 
-
+    /* La posicion del robot dentro del cuarto */
     class Posicion {
         int x;
         int y;
         int angulo;
     }
 
+    /* 
+    * Clase que implementa el comportamiento del robot
+    * 
+    */
     class Robot {
         Posicion pos;
         double sensorOdometrico;
         double laser;
 
-        Robot () {
+        Robot() {
             Random r = new Random();
             int startX = r.nextInt(columnas);
             int startY = r.nextInt(renglones);
@@ -335,6 +407,7 @@ public class RobotWorld extends PApplet {
                 startY = r.nextInt(renglones);
                 posOk  = mapa.mundo[startY][startX].tipo != Tipo.OBSTACULO;
             }
+
             mover(startX, startY);
         }
 
@@ -346,7 +419,7 @@ public class RobotWorld extends PApplet {
         void mover(int x, int y) {
             mover(x,y,0);
         }
-
+        /* actualiza la posicion del robot dentro del cuarto */
         void mover(int x, int y, int angulo) {
             pos.x = x;
             pos.y = y;
