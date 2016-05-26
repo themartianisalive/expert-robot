@@ -4,6 +4,7 @@ enum Situacion {
   SIN_VISITAR,
   EN_SOLUCION,
   CALCULADO,
-  ACTUAL
+  ACTUAL,
+  ROBOT_DENTRO
 }
 
