@@ -118,7 +118,7 @@ public class RobotWorld extends PApplet {
 				switch (s) {
 					case ROBOT_DENTRO:
 						fill(0);
-						text("B=" + robot.getCreencia() , j*tamanioMosaico+4, i*tamanioMosaico+15);
+						text("B=" + m.creencia , j*tamanioMosaico+4, i*tamanioMosaico+15);
 						break;
 					case CALCULADO:
 						fill(0);
@@ -133,7 +133,7 @@ public class RobotWorld extends PApplet {
 		}
 
 		fill(0);
-		textFont(fuente, 13);
+		textFont(fuente, 12);
 
 		rect(0, renglones * tamanioMosaico, columnas *  tamanioMosaico, 70);
 
@@ -259,7 +259,7 @@ public class RobotWorld extends PApplet {
 						sOdom += creenciaAnterior * lLaser;
 						mediaCreencia += creenciaAnterior * lLaser;
 				    }
-				    m.creencia =  mediaCreencia;
+				    m.creencia =  mediaCreencia / 8;
 				}
 			}
 			/* despues normalizamos */
@@ -282,9 +282,12 @@ public class RobotWorld extends PApplet {
 				for (Mosaico m : row) {
 					double sTheta = 0;
 				   for (Direccion ddd : Direccion.values()) {
-				   		double sensor = robot.pos.angulo + (angulo - robot.pos.angulo * Math.random());
+				   		double sensor = (angulo - (robot.pos.angulo + 2 * Math.random()));
 				   		double exponent = Math.pow((ddd.angulo()-robot.pos.angulo) - (sensor),2) / (2 * ruidoGiro * ruidoGiro);
-				   		double lAngulo = (1.0f / (2 * Math.PI * ruidoGiro))  * Math.pow(Math.E, exponent);
+				   		double lAngulo = (1.0 / (Math.sqrt(2 * Math.PI) * ruidoGiro))  * Math.pow(Math.E, exponent);
+				   		lAngulo = (lAngulo == Double.POSITIVE_INFINITY || lAngulo == Double.NEGATIVE_INFINITY) ? 0 : lAngulo;
+				   		System.out.println("lAngulo: "+lAngulo + "exponent: "+exponent + "sensor: "+sensor + "ruidoGiro: "+ (ddd.angulo()-robot.pos.angulo));
+
 				   		sTheta += lAngulo;
 				   }
 				   double creencias = 0;
@@ -312,7 +315,6 @@ public class RobotWorld extends PApplet {
 			double delta = Math.sqrt(Math.pow((tMAsUno.columna - actual.columna), 2) + Math.pow((tMAsUno.renglon - actual.renglon), 2));
 			double sigmaX = ruidoOdometro * delta * Math.cos(robot.pos.angulo);
 			double sigmaY = ruidoOdometro * delta * Math.sin(robot.pos.angulo);
-			System.out.println("delta: "+delta + " sigmaX: "+sigmaX + " sigmaY: "+delta);
 
 			for (Mosaico[] row : mapa.mundo) {
 				for (Mosaico m : row) {
@@ -320,17 +322,23 @@ public class RobotWorld extends PApplet {
 				   for (Direccion d : Direccion.values()) {
 						double distanciaReal = m.distancias.get(d);
 						double laser = distanciaReal * Math.random() * 2;
-						double pX = Math.pow(tMAsUno.columna + delta * Math.cos(dir.angulo()) - actual.columna, 2) / sigmaX * sigmaX;
-						double pY = Math.pow(tMAsUno.renglon + delta * Math.sin(dir.angulo())- actual.renglon, 2) / sigmaY * sigmaY;
+						double pX = Math.pow(tMAsUno.columna + delta * Math.cos(d.angulo()) - actual.columna, 2) / (sigmaX * sigmaX);
+						double pY = Math.pow(tMAsUno.renglon + delta * Math.sin(d.angulo())- actual.renglon, 2) / (sigmaY * sigmaY);
+						
+						pX = (pX == Double.POSITIVE_INFINITY || pX == Double.NEGATIVE_INFINITY) ? 0 : pX;
+						pY = (pY == Double.POSITIVE_INFINITY || pY == Double.NEGATIVE_INFINITY) ? 0 : pY;
+
 						double exponent = -0.5 * (pX + pY);
-						double lLaser = 1.0f / (2 * Math.PI * sigma * sigmaX * sigmaY)  *  Math.pow(Math.E, exponent);
+						double lLaser = 1.0f / ((2 * Math.PI) * sigmaX * sigmaY)  *  Math.pow(Math.E, exponent);
+						lLaser = (lLaser == Double.POSITIVE_INFINITY || lLaser == Double.NEGATIVE_INFINITY) ? 0 : lLaser;
+						System.out.println("exponent: "+exponent + "lLaser: "+lLaser + "pX: "+pX + "pY: "+pY );
 						sCreencia += lLaser;
 				   }
 				   for (Direccion ff : Direccion.values()) {
 				   		double creencia = sCreencia * m.creencias.get(ff);
 				   		m.creencias.put(ff, creencia);
 				   }
-				   m.creencia =  sCreencia;
+				   m.creencia =  sCreencia/8;
 				}
 			}
 
