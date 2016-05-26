@@ -61,19 +61,23 @@ public class RobotWorld extends PApplet {
 	/** Dibuja la imagen en cada ciclo */
 	@Override
 	public void draw() {
-		if (mueve) {
-			int avanza = r.nextInt(10);
-			if (avanza <= 8) {
-				int gira = r.nextInt(10);
-				if (gira <= 2) {
-					robot.giraRandom();
+		try {
+			if (mueve) {
+				int avanza = r.nextInt(10);
+				if (avanza <= 8) {
+					int gira = r.nextInt(10);
+					if (gira <= 2) {
+						robot.giraRandom();
+					} else {
+						robot.avanzaRandom();
+					}
 				} else {
-					robot.avanzaRandom();
+					algoritmo.actualizaCreenciaEstatico();
 				}
-			} else {
-				algoritmo.actualizaCreenciaEstatico();
+				mueve = false;
 			}
-			mueve = false;
+		} catch (Exception e) {
+			
 		}
 
 		Mosaico m;
@@ -130,7 +134,7 @@ public class RobotWorld extends PApplet {
 		rect(0, renglones * tamanioMosaico, columnas *  tamanioMosaico, 70);
 
 		fill(255);
-		text("Angulo :" + robot.pos.angulo + "g", 30, renglones * tamanioMosaico + 30);
+		text("Ang :" + robot.pos.angulo + "g", 30, renglones * tamanioMosaico + 30);
 		text("Pos: " + robot.pos.x + "," + robot.pos.y, 30, renglones * tamanioMosaico + 50);
 
         fill(0,200,0);
@@ -139,7 +143,7 @@ public class RobotWorld extends PApplet {
         text("Robot", 2 * tamanioMosaico + 30, renglones * tamanioMosaico + 30);
 
 
-		fill(220);
+		fill(100);
 		rect(2 * tamanioMosaico, renglones * tamanioMosaico + 30, 20, 20);
 		fill(255);
 		text("obstaculos", 2 * tamanioMosaico + 30, renglones * tamanioMosaico + 50);
@@ -201,7 +205,9 @@ public class RobotWorld extends PApplet {
 		double ruidoGiro;
 
 		Algoritmo() {
-			ruidoOdometro = ruidoGiro = sigma = Math.random();
+			ruidoOdometro = Math.random();
+			ruidoGiro = Math.random();
+			sigma = Math.random(); 
 		}
 
 		/* Inicializamos la creencia de todas las celdas*/
@@ -233,24 +239,29 @@ public class RobotWorld extends PApplet {
 		*/
 		public void actualizaCreenciaEstatico() {
 			double sOdom = 0;
-
 			for (Mosaico[] row : mapa.mundo) {
 				for (Mosaico m : row) {
-				   for (Direccion d : Direccion.values()) {
+					double mediaCreencia = 0;
+				    for (Direccion d : Direccion.values()) {
 						double distanciaReal = m.distancias.get(d);
-						double laser = distanciaReal * 0.95;
+						double laser = distanciaReal * (Math.random() * 2);
 						double exponent = -((laser-distanciaReal) * (laser-distanciaReal)) / (2 * sigma * sigma);
 						double lLaser = (1.0f / (Math.sqrt(2 * Math.PI) * sigma))  * Math.pow(Math.E, exponent);
-
-						m.creencia = m.creencia * lLaser;
-						sOdom += m.creencia;
-				   }
+						/* el valor de la creencia anterior, por el nuevo calculado*/
+						double creenciaAnterior = m.creencias.get(d);
+						m.creencias.put(d, creenciaAnterior * lLaser);
+						sOdom += creenciaAnterior * lLaser;
+						mediaCreencia += creenciaAnterior * lLaser;
+				    }
+				    m.creencia =  mediaCreencia / 8;
 				}
 			}
+			/* despues normalizamos */
 			for (Mosaico[] row : mapa.mundo) {
 				for (Mosaico m : row) {
 				   for (Direccion d : Direccion.values()) {
-						m.creencia = (1 / sOdom) * m.creencia;
+					   	double creencia = m.creencias.get(d);
+					   	m.creencias.put(d, 1/sOdom * creencia);
 				   }
 				}
 			}
@@ -261,29 +272,22 @@ public class RobotWorld extends PApplet {
 		* no se haya movido
 		*/
 		public void actualizaCreenciaGiro(int angulo) {
-			double sOdom = 0;
-
 			for (Mosaico[] row : mapa.mundo) {
 				for (Mosaico m : row) {
+					double sTheta = 0;
 				   for (Direccion ddd : Direccion.values()) {
-						double distanciaReal = m.distancias.get(ddd);
-						double laser = distanciaReal * 0.95;
-						double exponent = -((laser-distanciaReal) * (laser-distanciaReal)) / (2 * sigma * sigma);
-						double lLaser = (1.0f / (Math.sqrt(2 * Math.PI) * sigma))  * Math.pow(Math.E, exponent);
-
-						m.creencia = m.creencia * lLaser;
-						sOdom += m.creencia;
+				   		double sensor = robot.pos.angulo + (angulo - robot.pos.angulo * Math.random());
+				   		double exponent = Math.pow((ddd.angulo()-robot.pos.angulo) - (sensor),2) / (2 * ruidoGiro * ruidoGiro);
+				   		double lAngulo = (1.0f / (Math.sqrt(2 * Math.PI) * sigma))  * Math.pow(Math.E, exponent);
+				   		sTheta += lAngulo;
+				   }
+				   for (Direccion f : Direccion.values()) {
+				   		double creenciaActual = m.creencias.get(f);
+				   		creenciaActual *= sTheta;
+				   		m.creencias.put(f, creenciaActual);
 				   }
 				}
 			}
-			for (Mosaico[] row : mapa.mundo) {
-				for (Mosaico m : row) {
-				   for (Direccion dd : Direccion.values()) {
-						m.creencia = (1 / sOdom) * m.creencia;
-				   }
-				}
-			}
-
 		}
 
 		/* 
@@ -306,13 +310,7 @@ public class RobotWorld extends PApplet {
 				   }
 				}
 			}
-			for (Mosaico[] row : mapa.mundo) {
-				for (Mosaico m : row) {
-				   for (Direccion d : Direccion.values()) {
-						m.creencia = (1 / sOdom) * m.creencia;
-				   }
-				}
-			}
+
 		}
 	}
 
@@ -358,6 +356,7 @@ public class RobotWorld extends PApplet {
 		double creencia;
 		double distancia;
 		Hashtable<Direccion, Double> distancias = new Hashtable<>();
+		Hashtable<Direccion, Double> creencias = new Hashtable<>();
 
 		Mosaico(int renglon, int columna, Mapa mapa){
 			this.renglon = renglon;
@@ -486,8 +485,9 @@ public class RobotWorld extends PApplet {
 
 		void giraRandom() {
 			int angulo = r.nextInt(8);
+			//Calculamos la creencia de la nueva posicion antes de asignarla
+			algoritmo.actualizaCreenciaGiro(angulo * 45);
 			pos.angulo = angulo * 45;
-			algoritmo.actualizaCreenciaGiro(pos.angulo);
 		}
 
 		void mover(Direccion dir) {
@@ -503,35 +503,7 @@ public class RobotWorld extends PApplet {
 					return;
 
 			}
-			int angulo = pos.angulo;
-			
-			switch (dir) {
-				case N:
-					angulo = 90;
-					break;
-				case S:
-					angulo = 270;
-					break;
-				case E:
-					angulo = 0;
-					break;
-				case O:
-					angulo = 180;
-					break;
-				case NE:
-					angulo = 45;
-					break;
-				case NO:
-					angulo = 135;
-					break;
-				case SE:
-					angulo = 315;
-					break;
-				case SO:
-					angulo = 225;
-					break;
-			}
-			mover(np.columna, np.renglon, angulo);
+			mover(np.columna, np.renglon, dir.angulo());
 		}
 
 		/* actualiza la posicion del robot dentro del cuarto */
