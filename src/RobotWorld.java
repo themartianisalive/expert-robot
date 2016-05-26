@@ -21,7 +21,7 @@ public class RobotWorld extends PApplet {
 	PImage face;
 
 	Mapa mapa;                  // El mapa de la habitación
-	boolean expande = false;    // Bandera para solicitar la expansión del siguiente nodo.
+	boolean mueve = false;    // Bandera para solicitar la expansión del siguiente nodo.
 	Robot robot;                // Nuestro agente
 	Algoritmo algoritmo;        // Instancia del algoritmo de Localizacion
 	Random r;
@@ -32,7 +32,7 @@ public class RobotWorld extends PApplet {
 	final int RIGH = 39;
 	
 	public void settings() {
-		size(columnas * tamanioMosaico, renglones * tamanioMosaico);
+		size(columnas * tamanioMosaico, renglones * tamanioMosaico+70);
 		//String path = RobotWorld.class.getClassLoader("").getPath();
 		// File file = new File(path);
 		//System.out.println(path);
@@ -43,7 +43,7 @@ public class RobotWorld extends PApplet {
 	/** Configuracion inicial */
 	@Override
 	public void setup(){
-		frameRate(5);
+		frameRate(15);
 
 		background(50);
 		r =  new Random();
@@ -61,11 +61,19 @@ public class RobotWorld extends PApplet {
 	/** Dibuja la imagen en cada ciclo */
 	@Override
 	public void draw() {
-
-		if (expande) {
-			System.out.println("Aqui se debe mover");
-			algoritmo.actualizaCreenciaEstatico();
-			expande = false;
+		if (mueve) {
+			int avanza = r.nextInt(10);
+			if (avanza <= 8) {
+				int gira = r.nextInt(10);
+				if (gira <= 2) {
+					robot.giraRandom();
+				} else {
+					robot.avanzaRandom();
+				}
+			} else {
+				algoritmo.actualizaCreenciaEstatico();
+			}
+			mueve = false;
 		}
 
 		Mosaico m;
@@ -116,32 +124,42 @@ public class RobotWorld extends PApplet {
 			}
 		}
 
-		if (keyPressed) {
-			if (key == 'a' || key == 'A') {
-				robot.moverDerecha();
-			}
-			if (key == 'd' || key == 'D') {
-				robot.moverIzquierda();
-			}
-			if (keyCode == UP) {
-				robot.mover(Direccion.N);
-			}       
-			if (keyCode == DOWN) {
-				robot.mover(Direccion.S);
-			}
-			if (keyCode == LEFT) {
-				robot.mover(Direccion.O);
-			}
-			if (keyCode == RIGH) {
-				robot.mover(Direccion.E);
-			}
-		}
+		fill(0);
+		textFont(fuente, 13);
+
+		rect(0, renglones * tamanioMosaico, columnas *  tamanioMosaico, 70);
+
+		fill(255);
+		text("Angulo :" + robot.pos.angulo + "g", 30, renglones * tamanioMosaico + 30);
+		text("Pos: " + robot.pos.x + "," + robot.pos.y, 30, renglones * tamanioMosaico + 50);
+
+        fill(0,200,0);
+        rect(2 * tamanioMosaico, renglones * tamanioMosaico + 10, 20, 20);
+        fill(255);
+        text("Robot", 2 * tamanioMosaico + 30, renglones * tamanioMosaico + 30);
+
+
+		fill(220);
+		rect(2 * tamanioMosaico, renglones * tamanioMosaico + 30, 20, 20);
+		fill(255);
+		text("obstaculos", 2 * tamanioMosaico + 30, renglones * tamanioMosaico + 50);
+
+		fill(150,0,150);
+		rect(4 * tamanioMosaico, renglones * tamanioMosaico + 10, 20, 20);
+		fill(255);
+		text("Nodo actual", 4 * tamanioMosaico + 30, renglones * tamanioMosaico + 30);
+
+		fill(0,0,100);
+		rect(4 * tamanioMosaico, renglones * tamanioMosaico + 30, 20, 20);
+		fill(255);
+		text("Solución", 4 * tamanioMosaico + 30, renglones * tamanioMosaico + 50);
+
 	}
 
 	
 	@Override
 	public void mouseClicked() {
-		expande = true;
+		mueve = true;
 	}
 
 	/* 
@@ -242,13 +260,13 @@ public class RobotWorld extends PApplet {
 		* Actualizamos la creencia en el caso de que el robot
 		* no se haya movido
 		*/
-		public void actualizaCreenciaGiro(Direccion d) {
+		public void actualizaCreenciaGiro(int angulo) {
 			double sOdom = 0;
 
 			for (Mosaico[] row : mapa.mundo) {
 				for (Mosaico m : row) {
 				   for (Direccion ddd : Direccion.values()) {
-						double distanciaReal = m.distancias.get(d);
+						double distanciaReal = m.distancias.get(ddd);
 						double laser = distanciaReal * 0.95;
 						double exponent = -((laser-distanciaReal) * (laser-distanciaReal)) / (2 * sigma * sigma);
 						double lLaser = (1.0f / (Math.sqrt(2 * Math.PI) * sigma))  * Math.pow(Math.E, exponent);
@@ -272,7 +290,7 @@ public class RobotWorld extends PApplet {
 		* Actualizamos la creencia en el caso de que el robot
 		* no se haya movido
 		*/
-		public void actualizaCreenciaMovimiento(float delta) {
+		public void actualizaCreenciaMovimiento(double delta) {
 			double sOdom = 0;
 
 			for (Mosaico[] row : mapa.mundo) {
@@ -296,7 +314,6 @@ public class RobotWorld extends PApplet {
 				}
 			}
 		}
-
 	}
 
 	/*
@@ -452,24 +469,40 @@ public class RobotWorld extends PApplet {
 			}
 
 			m = mapa.mundo[startY][startX];
-			mover(startX, startY);
+			mover(startX, startY,0);
 		}
 
 		Robot (int x, int y) {
 			sensorOdometrico = laser = 0;
-			mover(x, y);
+			mover(x, y,0);
 		}
 
-		void moverIzquierda() {
-			pos.angulo = (pos.angulo +  45) % 360;
+		void avanzaRandom() {
+			int index = new Random().nextInt(Direccion.values().length);
+    		Direccion nueva =  Direccion.values()[index];
+    		mover(nueva);
+    		algoritmo.actualizaCreenciaMovimiento(nueva.distancia() * tamanioMosaico);
 		}
 
-		void moverDerecha() {
-			pos.angulo = (pos.angulo -  45) % 360;
+		void giraRandom() {
+			int angulo = r.nextInt(8);
+			pos.angulo = angulo * 45;
+			algoritmo.actualizaCreenciaGiro(pos.angulo);
 		}
 
 		void mover(Direccion dir) {
 			Mosaico np = m.aplicaDireccion(dir);
+			/* la direccion nos mando al carajo, pues insitamos */
+			if (np == null || np.tipo == Tipo.OBSTACULO) {
+				for (Direccion d :  Direccion.values()) {
+					np = m.aplicaDireccion(d);
+					if (np != null && np.tipo != Tipo.OBSTACULO)
+						break;
+				}
+				if (np == null)
+					return;
+
+			}
 			int angulo = pos.angulo;
 			
 			switch (dir) {
@@ -498,21 +531,18 @@ public class RobotWorld extends PApplet {
 					angulo = 225;
 					break;
 			}
-			
 			mover(np.columna, np.renglon, angulo);
 		}
 
-		void mover(int x, int y) {
-			mover(x,y,0);
-		}
 		/* actualiza la posicion del robot dentro del cuarto */
 		void mover(int x, int y, int angulo) {
 			pos.x = x;
 			pos.y = y;
 			pos.angulo = angulo;
+			m.tipo = Tipo.VACIO;
 			mapa.mundo[y][x].tipo = Tipo.ROBOT;
 			m = mapa.mundo[y][x];
-			actualizaDistancias(x, y);
+			//actualizaDistancias(x, y);
 		}
 
 		/* 
