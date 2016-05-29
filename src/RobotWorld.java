@@ -33,10 +33,6 @@ public class RobotWorld extends PApplet {
 	
 	public void settings() {
 		size(columnas * tamanioMosaico, renglones * tamanioMosaico+70);
-		//String path = RobotWorld.class.getClassLoader("").getPath();
-		// File file = new File(path);
-		//System.out.println(path);
-		//face = loadImage(path +  "robot.png");
 	}
 
 
@@ -64,12 +60,12 @@ public class RobotWorld extends PApplet {
 		try {
 			if (mueve) {
 				int avanza = r.nextInt(10);
-				if (avanza <= 8) {
+				if (avanza <= 10) {
 					int gira = r.nextInt(10);
 					if (gira <= 2) {
 						robot.giraRandom();
 					} else {
-						robot.avanzaRandom();
+						//robot.avanzaRandom();
 					}
 				} else {
 					algoritmo.actualizaCreenciaEstatico();
@@ -116,10 +112,6 @@ public class RobotWorld extends PApplet {
 				rect(j*tamanioMosaico, i*tamanioMosaico, tamanioMosaico, tamanioMosaico);
 
 				switch (s) {
-					case ROBOT_DENTRO:
-						fill(0);
-						text("B=" + m.creencia , j*tamanioMosaico+4, i*tamanioMosaico+15);
-						break;
 					case CALCULADO:
 						fill(0);
 						text("B=" + m.creencia , j*tamanioMosaico+4, i*tamanioMosaico+15);
@@ -214,7 +206,7 @@ public class RobotWorld extends PApplet {
 			sigma = Math.random(); 
 		}
 
-		/* Inicializamos la creencia de todas las celdas*/
+		/* Inicializamos la creencia de todas las celdas */
 	   public void inicializa() {
 		   double creencia = 1.0f / ((mapa.totalCeldas - mapa.totalObstaculos) * 1.0f);
 		   for (Mosaico[] row : mapa.mundo) {
@@ -227,7 +219,7 @@ public class RobotWorld extends PApplet {
 		   }
 	   }
 
-	   /* Actualizamos las disntcias a todas partes del mundo */
+	   /* Actualizamos las distancias a todas partes del mundo */
 		public void calculaDistancias() {
 			for (Mosaico[] row : mapa.mundo) {
 				for (Mosaico m : row) {
@@ -250,6 +242,7 @@ public class RobotWorld extends PApplet {
 					double mediaCreencia = 0;
 				    for (Direccion d : Direccion.values()) {
 						double distanciaReal = m.distancias.get(d);
+						/* le agregamos ruido a la lectura de la distancia */
 						double laser = distanciaReal * (Math.random() * 2);
 						double exponent = -((laser-distanciaReal) * (laser-distanciaReal)) / (2 * sigma * sigma);
 						double lLaser = (1.0f / (Math.sqrt(2 * Math.PI) * sigma))  * Math.pow(Math.E, exponent);
@@ -259,6 +252,7 @@ public class RobotWorld extends PApplet {
 						sOdom += creenciaAnterior * lLaser;
 						mediaCreencia += creenciaAnterior * lLaser;
 				    }
+				    /* el valor promedio que mostraremos en la celda */
 				    m.creencia =  mediaCreencia / 8;
 				}
 			}
@@ -277,25 +271,27 @@ public class RobotWorld extends PApplet {
 		* Actualizamos la creencia en el caso de que el robot
 		* no se haya movido
 		*/
-		public void actualizaCreenciaGiro(int angulo) {
+		public void actualizaCreenciaGiro(double angulo) {
 			for (Mosaico[] row : mapa.mundo) {
 				for (Mosaico m : row) {
 					double sTheta = 0;
 				   for (Direccion ddd : Direccion.values()) {
-				   		double sensor = (angulo - (robot.pos.angulo + 2 * Math.random()));
-				   		double exponent = Math.pow((ddd.angulo()-robot.pos.angulo) - (sensor),2) / (2 * ruidoGiro * ruidoGiro);
-				   		double lAngulo = (1.0 / (Math.sqrt(2 * Math.PI) * ruidoGiro))  * Math.pow(Math.E, exponent);
+				   		double exponent = Math.pow((Math.toRadians(ddd.angulo())-robot.pos.angulo) - angulo,2) / (ruidoGiro * ruidoGiro);
+				   		double lAngulo = (1.0 / ((2 * Math.PI) * ruidoGiro))  * Math.pow(Math.E, exponent);
 				   		lAngulo = (lAngulo == Double.POSITIVE_INFINITY || lAngulo == Double.NEGATIVE_INFINITY) ? 0 : lAngulo;
-				   		System.out.println("lAngulo: "+lAngulo + "exponent: "+exponent + "sensor: "+sensor + "ruidoGiro: "+ (ddd.angulo()-robot.pos.angulo));
-
+				   		System.out.println("lAngulo: "+lAngulo + "exponent: "+exponent + "sensor: "+angulo + "ruidoGiro: "+ (Math.toRadians(ddd.angulo())-robot.pos.angulo));
 				   		sTheta += lAngulo;
 				   }
 				   double creencias = 0;
 				   for (Direccion f : Direccion.values()) {
+				   		/* sacamos la creencia en t-1 */
 				   		double creenciaActual = m.creencias.get(f);
 				   		creenciaActual *= sTheta;
 				   		creencias += creenciaActual;
-				   		m.creencias.put(f, creenciaActual);
+				   }
+				   /* normalizamos */
+				   for (Direccion f : Direccion.values()) {
+				   		m.creencias.put(f,  m.creencias.get(f) * sTheta / creencias);
 				   }
 				   m.creencia = creencias;
 				}
@@ -322,23 +318,30 @@ public class RobotWorld extends PApplet {
 				   for (Direccion d : Direccion.values()) {
 						double distanciaReal = m.distancias.get(d);
 						double laser = distanciaReal * Math.random() * 2;
-						double pX = Math.pow(tMAsUno.columna + delta * Math.cos(d.angulo()) - actual.columna, 2) / (sigmaX * sigmaX);
-						double pY = Math.pow(tMAsUno.renglon + delta * Math.sin(d.angulo())- actual.renglon, 2) / (sigmaY * sigmaY);
+						double sX = delta * ruidoOdometro * Math.cos(Math.toRadians(d.angulo()));
+						double sY = delta * ruidoOdometro * Math.sin(Math.toRadians(d.angulo()));
+						double pX = Math.pow(tMAsUno.columna + delta * Math.cos(Math.toRadians(d.angulo())) - actual.columna, 2) / (sX * sX);
+						double pY = Math.pow(tMAsUno.renglon + delta * Math.cos(Math.toRadians(d.angulo()))- actual.renglon, 2) / (sY * sY);
 						
 						pX = (pX == Double.POSITIVE_INFINITY || pX == Double.NEGATIVE_INFINITY) ? 0 : pX;
 						pY = (pY == Double.POSITIVE_INFINITY || pY == Double.NEGATIVE_INFINITY) ? 0 : pY;
 
 						double exponent = -0.5 * (pX + pY);
 						double lLaser = 1.0f / ((2 * Math.PI) * sigmaX * sigmaY)  *  Math.pow(Math.E, exponent);
-						lLaser = (lLaser == Double.POSITIVE_INFINITY || lLaser == Double.NEGATIVE_INFINITY) ? 0 : lLaser;
-						System.out.println("exponent: "+exponent + "lLaser: "+lLaser + "pX: "+pX + "pY: "+pY );
+						System.out.println("exponent: "+exponent + "lLaser: "+lLaser + "pX: "+pX + "pY: "+pY + "dis: " + distanciaReal + "Laser: " + laser);
 						sCreencia += lLaser;
 				   }
+				   double creencia = 0;
 				   for (Direccion ff : Direccion.values()) {
-				   		double creencia = sCreencia * m.creencias.get(ff);
-				   		m.creencias.put(ff, creencia);
+				   		creencia += sCreencia * m.creencias.get(ff);
 				   }
-				   m.creencia =  sCreencia/8;
+				   /* normalizamos */
+				   for (Direccion ff : Direccion.values()) {
+				   		double c = sCreencia * m.creencias.get(ff) / creencia;
+				   		m.creencias.put(ff, c);
+				   }
+
+				   m.creencia = creencia;
 				}
 			}
 
@@ -358,7 +361,6 @@ public class RobotWorld extends PApplet {
 		if (m.tipo == Tipo.OBSTACULO) {
 			m.distancia = nd;
 			m.situacion = Situacion.CALCULADO;
-			System.out.println("nd: "+nd + m.columna + " ," + m.renglon + " " + m.tipo);
 		} else {                
 			buscaObstaculo(m.aplicaDireccion(dir), dir, nd);
 		}
@@ -472,7 +474,7 @@ public class RobotWorld extends PApplet {
 	class Posicion {
 		int x;
 		int y;
-		int angulo;
+		double angulo;
 	}
 
 	/* 
@@ -518,13 +520,14 @@ public class RobotWorld extends PApplet {
 		void giraRandom() {
 			int angulo = r.nextInt(8);
 			//Calculamos la creencia de la nueva posicion antes de asignarla
-			algoritmo.actualizaCreenciaGiro(angulo * 45);
-			pos.angulo = angulo * 45;
+			algoritmo.actualizaCreenciaGiro(Math.toRadians(angulo * 45));
+			pos.angulo = Math.toRadians(angulo * 45);
 		}
 
-		Direccion getDireccion(int angulo) {
-			angulo /= 45;
-			switch (angulo) {
+		Direccion getDireccion(double angulo) {
+			int a = (int) Math.toDegrees(angulo);
+			a /= 45;
+			switch (a) {
 				case 1:
 					return Direccion.NE;
 				case 2:
@@ -565,11 +568,11 @@ public class RobotWorld extends PApplet {
 					return;
 
 			}
-			mover(np.columna, np.renglon, dir.angulo());
+			mover(np.columna, np.renglon, Math.toRadians(dir.angulo()));
 		}
 
 		/* actualiza la posicion del robot dentro del cuarto */
-		void mover(int x, int y, int angulo) {
+		void mover(int x, int y, double angulo) {
 			pos.x = x;
 			pos.y = y;
 			pos.angulo = angulo;
