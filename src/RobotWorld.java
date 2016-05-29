@@ -65,7 +65,7 @@ public class RobotWorld extends PApplet {
 					if (gira <= 2) {
 						robot.giraRandom();
 					} else {
-						//robot.avanzaRandom();
+						robot.avanzaRandom();
 					}
 				} else {
 					algoritmo.actualizaCreenciaEstatico();
@@ -279,7 +279,6 @@ public class RobotWorld extends PApplet {
 				   		double exponent = Math.pow((Math.toRadians(ddd.angulo())-robot.pos.angulo) - angulo,2) / (ruidoGiro * ruidoGiro);
 				   		double lAngulo = (1.0 / ((2 * Math.PI) * ruidoGiro))  * Math.pow(Math.E, exponent);
 				   		lAngulo = (lAngulo == Double.POSITIVE_INFINITY || lAngulo == Double.NEGATIVE_INFINITY) ? 0 : lAngulo;
-				   		System.out.println("lAngulo: "+lAngulo + "exponent: "+exponent + "sensor: "+angulo + "ruidoGiro: "+ (Math.toRadians(ddd.angulo())-robot.pos.angulo));
 				   		sTheta += lAngulo;
 				   }
 				   double creencias = 0;
@@ -291,9 +290,10 @@ public class RobotWorld extends PApplet {
 				   }
 				   /* normalizamos */
 				   for (Direccion f : Direccion.values()) {
-				   		m.creencias.put(f,  m.creencias.get(f) * sTheta / creencias);
+				   		double s = m.creencias.get(f) * sTheta / creencias;
+				   		m.creencias.put(f, s);
+					   	m.creencia = s;
 				   }
-				   m.creencia = creencias;
 				}
 			}
 		}
@@ -308,27 +308,28 @@ public class RobotWorld extends PApplet {
 			Mosaico tMAsUno = actual.aplicaDireccion(dir);
 			if (tMAsUno == null)
 				return;
-			double delta = Math.sqrt(Math.pow((tMAsUno.columna - actual.columna), 2) + Math.pow((tMAsUno.renglon - actual.renglon), 2));
-			double sigmaX = ruidoOdometro * delta * Math.cos(robot.pos.angulo);
-			double sigmaY = ruidoOdometro * delta * Math.sin(robot.pos.angulo);
+			double delta = Math.sqrt(Math.pow((tMAsUno.columna - actual.columna), 2) + Math.pow((tMAsUno.renglon - actual.renglon), 2)) * tamanioMosaico;
 
 			for (Mosaico[] row : mapa.mundo) {
 				for (Mosaico m : row) {
 					double sCreencia = 0;
-				   for (Direccion d : Direccion.values()) {
-						double distanciaReal = m.distancias.get(d);
+				    for (Direccion d : Direccion.values()) {
+						double distanciaReal = m.distancias.get(d) * tamanioMosaico;
 						double laser = distanciaReal * Math.random() * 2;
 						double sX = delta * ruidoOdometro * Math.cos(Math.toRadians(d.angulo()));
 						double sY = delta * ruidoOdometro * Math.sin(Math.toRadians(d.angulo()));
 						double pX = Math.pow(tMAsUno.columna + delta * Math.cos(Math.toRadians(d.angulo())) - actual.columna, 2) / (sX * sX);
-						double pY = Math.pow(tMAsUno.renglon + delta * Math.cos(Math.toRadians(d.angulo()))- actual.renglon, 2) / (sY * sY);
+						double pY = Math.pow(tMAsUno.renglon + delta * Math.sin(Math.toRadians(d.angulo()))- actual.renglon, 2) / (sY * sY);
 						
 						pX = (pX == Double.POSITIVE_INFINITY || pX == Double.NEGATIVE_INFINITY) ? 0 : pX;
 						pY = (pY == Double.POSITIVE_INFINITY || pY == Double.NEGATIVE_INFINITY) ? 0 : pY;
 
 						double exponent = -0.5 * (pX + pY);
-						double lLaser = 1.0f / ((2 * Math.PI) * sigmaX * sigmaY)  *  Math.pow(Math.E, exponent);
-						System.out.println("exponent: "+exponent + "lLaser: "+lLaser + "pX: "+pX + "pY: "+pY + "dis: " + distanciaReal + "Laser: " + laser);
+						double lLaser = 1.0f / ((2 * Math.PI) * sX * sY)  *  Math.pow(Math.E, exponent);
+
+						lLaser = (lLaser == Double.POSITIVE_INFINITY || lLaser == Double.NEGATIVE_INFINITY || Double.isNaN(lLaser)) ? 0 : lLaser;
+
+						//System.out.println("exponent: "+exponent + "lLaser: "+lLaser + "pX: "+pX + "pY: "+pY + "dis: " + distanciaReal + "Laser: " + laser);
 						sCreencia += lLaser;
 				   }
 				   double creencia = 0;
@@ -339,9 +340,8 @@ public class RobotWorld extends PApplet {
 				   for (Direccion ff : Direccion.values()) {
 				   		double c = sCreencia * m.creencias.get(ff) / creencia;
 				   		m.creencias.put(ff, c);
+				   		m.creencia = c;
 				   }
-
-				   m.creencia = creencia;
 				}
 			}
 
