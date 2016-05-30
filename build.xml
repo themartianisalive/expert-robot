@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
 
-<project name="RobotWorld" basedir="." default="rebuild-run">
+<project name="Localizacion" basedir="." default="rebuild-run">
 
     <property name="src.dir"     value="src"/>
 
@@ -16,7 +16,7 @@
     <property name="classes.dir" value="${build.dir}/classes"/>
     <property name="jar.dir"     value="${build.dir}/jar"/>
 
-    <property name="main-class"  value="RobotWorld"/>
+    <property name="main-class"  value="Localizacion"/>
 
       <copy todir="${build.dir}"> 
           <fileset dir="${src.dir}" >
