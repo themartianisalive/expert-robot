@@ -1,0 +1,6 @@
+enum Tipo {
+  ROBOT,
+  ESTADO_FINAL,
+  OBSTACULO,
+  VACIO
+}

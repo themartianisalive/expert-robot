@@ -1,0 +1,12 @@
+Jonathan de Jesus Andrade Lopez
+414006962
+
+Como reutilice la mayor parte del escenario de A* para generar el mundo
+el proyecto parecí bastante sencillo, pero tuve muchos dolores de cabeza cuando
+las cantidades nunca cambiaban, así que tuve que leer el artículo
+para después darme cuenta que faltaba actualizar las creencias estaticas 
+después de haber dado una distribucion uniforme en el primer paso.
+El otro problema, las cantidades eran ridiculamente grandes cuando usaba grados,
+mudarme a radianes soluciono mis problemas y me evito tener que normalizar.
+
+El robot camina y gira de manera aleatoria al dar click sobre el escenario.
