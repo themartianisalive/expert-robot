@@ -25,7 +25,7 @@ public class RobotWorld extends PApplet {
 	Robot robot;                // Nuestro agente
 	Algoritmo algoritmo;        // Instancia del algoritmo de Localizacion
 	Random r;
-
+	int clicks = 0;
 	final int UP = 38;
 	final int DOWN = 40;
 	final int LEFT = 37;
@@ -34,7 +34,6 @@ public class RobotWorld extends PApplet {
 	public void settings() {
 		size(columnas * tamanioMosaico, renglones * tamanioMosaico+70);
 	}
-
 
 	/** Configuracion inicial */
 	@Override
@@ -58,7 +57,10 @@ public class RobotWorld extends PApplet {
 	@Override
 	public void draw() {
 		try {
-			if (mueve) {
+			if (clicks == 1) {
+				algoritmo.actualizaCreenciaEstatico();
+				clicks++;
+			} else if (mueve) {
 				int avanza = r.nextInt(10);
 				if (avanza <= 10) {
 					int gira = r.nextInt(10);
@@ -160,6 +162,7 @@ public class RobotWorld extends PApplet {
 	@Override
 	public void mouseClicked() {
 		mueve = true;
+		clicks++;
 	}
 
 	/* 
@@ -276,27 +279,23 @@ public class RobotWorld extends PApplet {
 				for (Mosaico m : row) {
 					double sTheta = 0;
 				   for (Direccion ddd : Direccion.values()) {
-				   		double exponent = Math.pow((Math.toRadians(ddd.angulo())-robot.pos.angulo) - angulo,2) / (ruidoGiro * ruidoGiro);
-				   		double lAngulo = (1.0 / ((2 * Math.PI) * ruidoGiro))  * Math.pow(Math.E, exponent);
-				   		lAngulo = (lAngulo == Double.POSITIVE_INFINITY || lAngulo == Double.NEGATIVE_INFINITY) ? 0 : lAngulo;
+				   		double sensor = Math.toRadians(robot.pos.angulo + (angulo - robot.pos.angulo * Math.random()));
+				   		double exponent = Math.pow(Math.toRadians(ddd.angulo()-robot.pos.angulo) - (sensor),2) / (2 * ruidoGiro * ruidoGiro);
+				   		double lAngulo = (1.0f / (Math.sqrt(2 * Math.PI) * sigma))  * Math.pow(Math.E, exponent);
 				   		sTheta += lAngulo;
 				   }
-				   double creencias = 0;
+				   double mu = 0;
 				   for (Direccion f : Direccion.values()) {
-				   		/* sacamos la creencia en t-1 */
 				   		double creenciaActual = m.creencias.get(f);
 				   		creenciaActual *= sTheta;
-				   		creencias += creenciaActual;
+				   		mu += creenciaActual;
+				   		m.creencias.put(f, creenciaActual);
 				   }
-				   /* normalizamos */
-				   for (Direccion f : Direccion.values()) {
-				   		double s = m.creencias.get(f) * sTheta / creencias;
-				   		m.creencias.put(f, s);
-					   	m.creencia = s;
-				   }
+				   m.creencia = mu;
 				}
 			}
 		}
+
 
 		/* 
 		* Actualizamos la creencia en el caso de que el robot
@@ -344,7 +343,6 @@ public class RobotWorld extends PApplet {
 				   }
 				}
 			}
-
 		}
 	}
 
